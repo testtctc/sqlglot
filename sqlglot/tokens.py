@@ -26,6 +26,9 @@ except ImportError:
 
 
 class TokenType(AutoName):
+    '''
+    枚举值 token类型
+    '''
     L_PAREN = auto()
     R_PAREN = auto()
     L_BRACKET = auto()
@@ -458,6 +461,7 @@ class Token:
 
 
 class _Tokenizer(type):
+    '''元类'''
     def __new__(cls, clsname, bases, attrs):
         klass = super().__new__(cls, clsname, bases, attrs)
 
@@ -558,6 +562,9 @@ class _Tokenizer(type):
 
 
 class Tokenizer(metaclass=_Tokenizer):
+    '''分词器'''
+
+    # 单词条
     SINGLE_TOKENS = {
         "(": TokenType.L_PAREN,
         ")": TokenType.R_PAREN,
@@ -600,6 +607,7 @@ class Tokenizer(metaclass=_Tokenizer):
     UNICODE_STRINGS: t.List[str | t.Tuple[str, str]] = []
     IDENTIFIERS: t.List[str | t.Tuple[str, str]] = ['"']
     IDENTIFIER_ESCAPES = ['"']
+    # 引号
     QUOTES: t.List[t.Tuple[str, str] | str] = ["'"]
     STRING_ESCAPES = ["'"]
     VAR_SINGLE_TOKENS: t.Set[str] = set()
@@ -625,6 +633,7 @@ class Tokenizer(metaclass=_Tokenizer):
     _KEYWORD_TRIE: t.Dict = {}
     _RS_TOKENIZER: t.Optional[t.Any] = None
 
+    # 关键字
     KEYWORDS: t.Dict[str, TokenType] = {
         **{f"{{%{postfix}": TokenType.BLOCK_START for postfix in ("", "+", "-")},
         **{f"{prefix}%}}": TokenType.BLOCK_END for prefix in ("", "+", "-")},
@@ -919,6 +928,7 @@ class Tokenizer(metaclass=_Tokenizer):
         "\r": TokenType.BREAK,
     }
 
+    # 命令
     COMMANDS = {
         TokenType.COMMAND,
         TokenType.EXECUTE,
@@ -967,7 +977,7 @@ class Tokenizer(metaclass=_Tokenizer):
     def reset(self) -> None:
         self.sql = ""
         self.size = 0
-        self.tokens: t.List[Token] = []
+        self.tokens: t.List[Token] = [] #解析出来的token
         self._start = 0
         self._current = 0
         self._line = 1
@@ -980,7 +990,9 @@ class Tokenizer(metaclass=_Tokenizer):
         self._prev_token_line = -1
 
     def tokenize(self, sql: str) -> t.List[Token]:
-        """Returns a list of tokens corresponding to the SQL string `sql`."""
+        """
+        分词
+        Returns a list of tokens corresponding to the SQL string `sql`."""
         if USE_RS_TOKENIZER:
             return self.tokenize_rs(sql)
 
@@ -991,6 +1003,7 @@ class Tokenizer(metaclass=_Tokenizer):
         try:
             self._scan()
         except Exception as e:
+            # 报错上下文
             start = max(self._current - 50, 0)
             end = min(self._current + 50, self.size - 1)
             context = self.sql[start:end]
@@ -999,10 +1012,13 @@ class Tokenizer(metaclass=_Tokenizer):
         return self.tokens
 
     def _scan(self, until: t.Optional[t.Callable] = None) -> None:
+        '''扫描'''
         while self.size and not self._end:
+            # 当前位置
             current = self._current
 
             # Skip spaces here rather than iteratively calling advance() for performance reasons
+            # 跳过空白
             while current < self.size:
                 char = self.sql[current]
 
@@ -1014,8 +1030,9 @@ class Tokenizer(metaclass=_Tokenizer):
             offset = current - self._current if current > self._current else 1
 
             self._start = current
+            # 前进
             self._advance(offset)
-
+            # 1，先看看是不是数字 2， 是不是识别符 3 扫描关键字
             if not self._char.isspace():
                 if self._char.isdigit():
                     self._scan_number()
@@ -1023,7 +1040,7 @@ class Tokenizer(metaclass=_Tokenizer):
                     self._scan_identifier(self._IDENTIFIERS[self._char])
                 else:
                     self._scan_keywords()
-
+            # 终止条件
             if until and until():
                 break
 
@@ -1031,6 +1048,7 @@ class Tokenizer(metaclass=_Tokenizer):
             self.tokens[-1].comments.extend(self._comments)
 
     def _chars(self, size: int) -> str:
+        '''字符'''
         if size == 1:
             return self._char
 
@@ -1040,6 +1058,9 @@ class Tokenizer(metaclass=_Tokenizer):
         return self.sql[start:end] if end <= self.size else ""
 
     def _advance(self, i: int = 1, alnum: bool = False) -> None:
+        '''
+            alnum: 是否是阿拉伯数字
+        '''
         if self.WHITE_SPACE.get(self._char) is TokenType.BREAK:
             # Ensures we don't count an extra line if we get a \r\n line break sequence
             if not (self._char == "\r" and self._peek == "\n"):
@@ -1050,6 +1071,7 @@ class Tokenizer(metaclass=_Tokenizer):
 
         self._current += i
         self._end = self._current >= self.size
+        # 当前字符
         self._char = self.sql[self._current - 1]
         self._peek = "" if self._end else self.sql[self._current]
 
@@ -1059,7 +1081,7 @@ class Tokenizer(metaclass=_Tokenizer):
             _current = self._current
             _end = self._end
             _peek = self._peek
-
+            # 扫描数字
             while _peek.isalnum():
                 _col += 1
                 _current += 1
@@ -1218,6 +1240,7 @@ class Tokenizer(metaclass=_Tokenizer):
         return True
 
     def _scan_number(self) -> None:
+        """扫描数字"""
         if self._char == "0":
             peek = self._peek.upper()
             if peek == "B":

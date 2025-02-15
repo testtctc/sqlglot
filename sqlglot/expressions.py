@@ -44,13 +44,13 @@ if t.TYPE_CHECKING:
 
 
 class _Expression(type):
+    '''元类'''
     def __new__(cls, clsname, bases, attrs):
         klass = super().__new__(cls, clsname, bases, attrs)
 
         # When an Expression class is created, its key is automatically set to be
         # the lowercase version of the class' name.
         klass.key = clsname.lower()
-
         # This is so that docstrings are not inherited in pdoc
         klass.__doc__ = klass.__doc__ or ""
 
@@ -71,17 +71,24 @@ class Expression(metaclass=_Expression):
     Attributes:
         key: a unique key for each class in the Expression hierarchy. This is useful for hashing
             and representing expressions as strings.
+            键，唯一代表这个类，默认为类名的小写
         arg_types: determines the arguments (child nodes) supported by an expression. It maps
             arg keys to booleans that indicate whether the corresponding args are optional.
+            需要的参数以及参数是否可选
         parent: a reference to the parent expression (or None, in case of root expressions).
+            父节点
         arg_key: the arg key an expression is associated with, i.e. the name its parent expression
             uses to refer to it.
+            在父节点的key名
         index: the index of an expression if it is inside of a list argument in its parent.
         comments: a list of comments that are associated with a given expression. This is used in
             order to preserve comments when transpiling SQL code.
+            评论--列表
         type: the `sqlglot.expressions.DataType` type of an expression. This is inferred by the
             optimizer, in order to enable some transformations that require type information.
+            数据类型
         meta: a dictionary that can be used to store useful metadata for a given expression.
+            元数据
 
     Example:
         >>> class Foo(Expression):
@@ -99,11 +106,12 @@ class Expression(metaclass=_Expression):
     __slots__ = ("args", "parent", "arg_key", "index", "comments", "_type", "_meta", "_hash")
 
     def __init__(self, **args: t.Any):
-        self.args: t.Dict[str, t.Any] = args
+        self.args: t.Dict[str, t.Any] = args # 参数
         self.parent: t.Optional[Expression] = None
         self.arg_key: t.Optional[str] = None
         self.index: t.Optional[int] = None
         self.comments: t.Optional[t.List[str]] = None
+        # 数据类型
         self._type: t.Optional[DataType] = None
         self._meta: t.Optional[t.Dict[str, t.Any]] = None
         self._hash: t.Optional[int] = None
@@ -116,6 +124,7 @@ class Expression(metaclass=_Expression):
 
     @property
     def hashable_args(self) -> t.Any:
+        '''可哈希的参数'''
         return frozenset(
             (k, tuple(_norm_arg(a) for a in v) if type(v) is list else _norm_arg(v))
             for k, v in self.args.items()
@@ -138,6 +147,7 @@ class Expression(metaclass=_Expression):
     @property
     def expression(self) -> t.Any:
         """
+        获取表达还
         Retrieves the argument with key "expression".
         """
         return self.args.get("expression")
@@ -166,6 +176,7 @@ class Expression(metaclass=_Expression):
     @property
     def is_string(self) -> bool:
         """
+        是否是字符串
         Checks whether a Literal expression is a string.
         """
         return isinstance(self, Literal) and self.args["is_string"]
@@ -173,6 +184,7 @@ class Expression(metaclass=_Expression):
     @property
     def is_number(self) -> bool:
         """
+        是否是石咀
         Checks whether a Literal expression is a number.
         """
         return (isinstance(self, Literal) and not self.args["is_string"]) or (
@@ -181,6 +193,7 @@ class Expression(metaclass=_Expression):
 
     def to_py(self) -> t.Any:
         """
+        转换为python对象
         Returns a Python object equivalent of the SQL node.
         """
         raise ValueError(f"{self} cannot be converted to a Python object.")
@@ -200,6 +213,7 @@ class Expression(metaclass=_Expression):
     @property
     def alias(self) -> str:
         """
+        别名
         Returns the alias of the expression, or an empty string if it's not aliased.
         """
         if isinstance(self.args.get("alias"), TableAlias):
@@ -253,10 +267,14 @@ class Expression(metaclass=_Expression):
         return self.type is not None and self.type.is_type(*dtypes)
 
     def is_leaf(self) -> bool:
+        """是否是叶子节点
+        如果入参没有表达式，则是叶子节点
+        """
         return not any(isinstance(v, (Expression, list)) for v in self.args.values())
 
     @property
     def meta(self) -> t.Dict[str, t.Any]:
+        """元数据"""
         if self._meta is None:
             self._meta = {}
         return self._meta
@@ -344,6 +362,7 @@ class Expression(metaclass=_Expression):
         overwrite: bool = True,
     ) -> None:
         """
+        设置
         Sets arg_key to value.
 
         Args:
@@ -381,6 +400,7 @@ class Expression(metaclass=_Expression):
         self._set_parent(arg_key, value, index)
 
     def _set_parent(self, arg_key: str, value: t.Any, index: t.Optional[int] = None) -> None:
+        '''设置父类'''
         if hasattr(value, "parent"):
             value.parent = self
             value.arg_key = arg_key
@@ -395,6 +415,7 @@ class Expression(metaclass=_Expression):
     @property
     def depth(self) -> int:
         """
+        深度
         Returns the depth of this tree.
         """
         if self.parent:
@@ -713,6 +734,7 @@ class Expression(metaclass=_Expression):
 
     def error_messages(self, args: t.Optional[t.Sequence] = None) -> t.List[str]:
         """
+        验证表达式是否正确
         Checks if this expression is valid (e.g. all mandatory args are set).
 
         Args:
@@ -1000,7 +1022,7 @@ class Expression(metaclass=_Expression):
     def __invert__(self) -> Not:
         return not_(self.copy())
 
-
+# 转变类型
 IntoType = t.Union[
     str,
     t.Type[Expression],
@@ -1567,6 +1589,7 @@ class ProjectionDef(Expression):
 
 
 class TableAlias(Expression):
+    """别名"""
     arg_types = {"this": False, "columns": False}
 
     @property
@@ -3079,7 +3102,7 @@ class Tuple(Expression):
             ),
         )
 
-
+# 插叙修饰符
 QUERY_MODIFIERS = {
     "match": False,
     "laterals": False,
@@ -3300,6 +3323,7 @@ class Lock(Expression):
 
 
 class Select(Query):
+    '''查询'''
     arg_types = {
         "with": False,
         "kind": False,
@@ -3851,6 +3875,7 @@ class Select(Query):
 
     @property
     def named_selects(self) -> t.List[str]:
+        """选择的列"""
         return [e.output_name for e in self.expressions if e.alias_or_name]
 
     @property
@@ -4614,6 +4639,7 @@ class Sub(Binary):
 # Unary Expressions
 # (NOT a)
 class Unary(Condition):
+    """单算子操作"""
     pass
 
 
@@ -6613,6 +6639,7 @@ def _combine(
 
 
 def _wrap(expression: E, kind: t.Type[Expression]) -> E | Paren:
+    """包裹一层"""
     return Paren(this=expression) if isinstance(expression, kind) else expression
 
 
@@ -7575,7 +7602,9 @@ def rename_column(
 
 
 def convert(value: t.Any, copy: bool = False) -> Expression:
-    """Convert a python value into an expression object.
+    """
+    表达式转换
+    Convert a python value into an expression object.
 
     Raises an error if a conversion is not possible.
 

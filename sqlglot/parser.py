@@ -149,10 +149,12 @@ def build_trim(args: t.List, is_left: bool = True):
 
 
 def build_coalesce(args: t.List, is_nvl: t.Optional[bool] = None) -> exp.Coalesce:
+    """构建coalesce"""
     return exp.Coalesce(this=seq_get(args, 0), expressions=args[1:], is_nvl=is_nvl)
 
 
 class _Parser(type):
+    '''元类'''
     def __new__(cls, clsname, bases, attrs):
         klass = super().__new__(cls, clsname, bases, attrs)
 
@@ -176,7 +178,7 @@ class Parser(metaclass=_Parser):
             This is only relevant if error_level is ErrorLevel.RAISE.
             Default: 3
     """
-
+    # 构建表达式
     FUNCTIONS: t.Dict[str, t.Callable] = {
         **{name: func.from_arg_list for name, func in exp.FUNCTION_BY_NAME.items()},
         **dict.fromkeys(("COALESCE", "IFNULL", "NVL"), build_coalesce),
@@ -247,7 +249,7 @@ class Parser(metaclass=_Parser):
         "UPPER": build_upper,
         "VAR_MAP": build_var_map,
     }
-
+    # 无括号的函数
     NO_PAREN_FUNCTIONS = {
         TokenType.CURRENT_DATE: exp.CurrentDate,
         TokenType.CURRENT_DATETIME: exp.CurrentDate,
@@ -282,6 +284,7 @@ class Parser(metaclass=_Parser):
         TokenType.SIMPLEAGGREGATEFUNCTION,
     }
 
+    # 数据类型
     TYPE_TOKENS = {
         TokenType.BIT,
         TokenType.BOOLEAN,
@@ -552,6 +555,7 @@ class Parser(metaclass=_Parser):
 
     TRIM_TYPES = {"LEADING", "TRAILING", "BOTH"}
 
+    # 函数
     FUNC_TOKENS = {
         TokenType.COLLATE,
         TokenType.COMMAND,
@@ -670,7 +674,7 @@ class Parser(metaclass=_Parser):
         TokenType.RIGHT,
         TokenType.FULL,
     }
-
+    # join类型
     JOIN_KINDS = {
         TokenType.ANTI,
         TokenType.CROSS,
@@ -734,6 +738,7 @@ class Parser(metaclass=_Parser):
         ),
     }
 
+    # 核心解析器
     EXPRESSION_PARSERS = {
         exp.Cluster: lambda self: self._parse_sort(exp.Cluster, TokenType.CLUSTER_BY),
         exp.Column: lambda self: self._parse_column(),
@@ -764,7 +769,7 @@ class Parser(metaclass=_Parser):
         exp.With: lambda self: self._parse_with(),
         "JOIN_TYPE": lambda self: self._parse_join_parts(),
     }
-
+    # 语句
     STATEMENT_PARSERS = {
         TokenType.ALTER: lambda self: self._parse_alter(),
         TokenType.BEGIN: lambda self: self._parse_transaction(),
@@ -867,7 +872,7 @@ class Parser(metaclass=_Parser):
         TokenType.SIMILAR_TO: binary_range_parser(exp.SimilarTo),
         TokenType.FOR: lambda self, this: self._parse_comprehension(this),
     }
-
+    # 属性解析
     PROPERTY_PARSERS: t.Dict[str, t.Callable] = {
         "ALLOWED_VALUES": lambda self: self.expression(
             exp.AllowedValuesProperty, expressions=self._parse_csv(self._parse_primary)
@@ -1359,6 +1364,7 @@ class Parser(metaclass=_Parser):
         self.error_message_context = error_message_context
         self.max_errors = max_errors
         self.dialect = Dialect.get_or_raise(dialect)
+        # 重置
         self.reset()
 
     def reset(self):
@@ -1409,7 +1415,9 @@ class Parser(metaclass=_Parser):
             The target Expression.
         """
         errors = []
+        # 分别尝试
         for expression_type in ensure_list(expression_types):
+            # 函数
             parser = self.EXPRESSION_PARSERS.get(expression_type)
             if not parser:
                 raise TypeError(f"No parser registered for {expression_type}")
@@ -1431,12 +1439,13 @@ class Parser(metaclass=_Parser):
         raw_tokens: t.List[Token],
         sql: t.Optional[str] = None,
     ) -> t.List[t.Optional[exp.Expression]]:
+        """核心入口"""
         self.reset()
         self.sql = sql or ""
 
         total = len(raw_tokens)
         chunks: t.List[t.List[Token]] = [[]]
-
+        # 分句子
         for i, token in enumerate(raw_tokens):
             if token.token_type == TokenType.SEMICOLON:
                 if token.comments:
@@ -1447,11 +1456,13 @@ class Parser(metaclass=_Parser):
             else:
                 chunks[-1].append(token)
 
+        # 结果集
         expressions = []
 
         for tokens in chunks:
             self._index = -1
             self._tokens = tokens
+            # 前进
             self._advance()
 
             expressions.append(parse_method(self))
@@ -1521,12 +1532,15 @@ class Parser(metaclass=_Parser):
         return self.validate_expression(instance)
 
     def _add_comments(self, expression: t.Optional[exp.Expression]) -> None:
+        ''''添加评论'''
         if expression and self._prev_comments:
             expression.add_comments(self._prev_comments)
             self._prev_comments = None
 
     def validate_expression(self, expression: E, args: t.Optional[t.List] = None) -> E:
         """
+
+        验证表达式
         Validates an Expression, making sure that all its mandatory arguments are set.
 
         Args:
@@ -1549,11 +1563,12 @@ class Parser(metaclass=_Parser):
         return self._prev and self._curr and self._prev.end + 1 == self._curr.start
 
     def _advance(self, times: int = 1) -> None:
+        """移动一个位置，更新上下文"""
         self._index += times
         self._curr = seq_get(self._tokens, self._index)
         self._next = seq_get(self._tokens, self._index + 1)
 
-        if self._index > 0:
+        if self. _index> 0:
             self._prev = self._tokens[self._index - 1]
             self._prev_comments = self._prev.comments
         else:
@@ -1682,6 +1697,7 @@ class Parser(metaclass=_Parser):
         )
 
     def _parse_statement(self) -> t.Optional[exp.Expression]:
+        """解析语句"""
         if self._curr is None:
             return None
 
@@ -2899,6 +2915,7 @@ class Parser(metaclass=_Parser):
         parse_subquery_alias: bool = True,
         parse_set_operation: bool = True,
     ) -> t.Optional[exp.Expression]:
+        """解析select"""
         cte = self._parse_with()
 
         if cte:
@@ -2946,6 +2963,7 @@ class Parser(metaclass=_Parser):
                 self.raise_error("Cannot specify both ALL and DISTINCT after SELECT")
 
             limit = self._parse_limit(top=True)
+            # 解析投影
             projections = self._parse_projections()
 
             this = self.expression(
@@ -3027,6 +3045,7 @@ class Parser(metaclass=_Parser):
         )
 
     def _parse_cte(self) -> exp.CTE:
+        """解析with语句"""
         alias = self._parse_table_alias(self.ID_VAR_TOKENS)
         if not alias or not alias.this:
             self.raise_error("Expected CTE to have alias")
@@ -7107,6 +7126,7 @@ class Parser(metaclass=_Parser):
         return None
 
     def _match(self, token_type, advance=True, expression=None):
+        '''类型匹配'''
         if not self._curr:
             return None
 
@@ -7119,6 +7139,9 @@ class Parser(metaclass=_Parser):
         return None
 
     def _match_set(self, types, advance=True):
+        '''类型匹配
+        默认前进
+        '''
         if not self._curr:
             return None
 
@@ -7130,6 +7153,7 @@ class Parser(metaclass=_Parser):
         return None
 
     def _match_pair(self, token_type_a, token_type_b, advance=True):
+        '''匹配对'''
         if not self._curr or not self._next:
             return None
 
@@ -7141,6 +7165,7 @@ class Parser(metaclass=_Parser):
         return None
 
     def _match_l_paren(self, expression: t.Optional[exp.Expression] = None) -> None:
+        '''左括号'''
         if not self._match(TokenType.L_PAREN, expression=expression):
             self.raise_error("Expecting (")
 
@@ -7149,6 +7174,7 @@ class Parser(metaclass=_Parser):
             self.raise_error("Expecting )")
 
     def _match_texts(self, texts, advance=True):
+        '''匹配文本'''
         if (
             self._curr
             and self._curr.token_type != TokenType.STRING

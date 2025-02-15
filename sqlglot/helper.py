@@ -32,6 +32,7 @@ class AutoName(Enum):
     """
 
     def _generate_next_value_(name, _start, _count, _last_values):
+        '''使用值'''
         return name
 
 

@@ -176,3 +176,8 @@ x"""
                 (TokenType.STRING, ") }}"),
             ],
         )
+    def test_hive(self):
+        tokeniner = Tokenizer(dialect='hive')
+        sql='select 1 + 2 \n +3'
+        out = tokeniner.tokenize(sql)
+        print(out)

@@ -8,6 +8,7 @@ if t.TYPE_CHECKING:
     JSON = t.Union[dict, list, str, float, int, bool, None]
     Node = t.Union[t.List["Node"], exp.DataType.Type, exp.Expression, JSON]
 
+# 序列化和反序列化
 
 def dump(node: Node) -> JSON:
     """

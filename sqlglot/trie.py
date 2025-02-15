@@ -5,13 +5,18 @@ key = t.Sequence[t.Hashable]
 
 
 class TrieResult(Enum):
+    """字典树匹配结果"""
+    # 匹配失败
     FAILED = auto()
+    # 前缀
     PREFIX = auto()
+    # 存在
     EXISTS = auto()
 
 
 def new_trie(keywords: t.Iterable[key], trie: t.Optional[t.Dict] = None) -> t.Dict:
     """
+    构建字典树
     Creates a new trie out of a collection of keywords.
 
     The trie is represented as a sequence of nested dictionaries keyed by either single

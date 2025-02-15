@@ -61,6 +61,7 @@ def unsupported_args(
 
 
 class _Generator(type):
+    '''生产器元类'''
     def __new__(cls, clsname, bases, attrs):
         klass = super().__new__(cls, clsname, bases, attrs)
 
@@ -73,6 +74,7 @@ class _Generator(type):
 
 class Generator(metaclass=_Generator):
     """
+    生成sql
     Generator converts a given syntax tree to the corresponding SQL string.
 
     Args:
@@ -109,7 +111,7 @@ class Generator(metaclass=_Generator):
         comments: Whether to preserve comments in the output SQL code.
             Default: True
     """
-
+    # 转换器
     TRANSFORMS: t.Dict[t.Type[exp.Expression], t.Callable[..., str]] = {
         **JSON_PATH_PART_TRANSFORMS,
         exp.AllowedValuesProperty: lambda self,
@@ -475,7 +477,7 @@ class Generator(metaclass=_Generator):
 
     PARAMETER_TOKEN = "@"
     NAMED_PLACEHOLDER_TOKEN = ":"
-
+    # 属性位置
     PROPERTIES_LOCATION = {
         exp.AllowedValuesProperty: exp.Properties.Location.POST_SCHEMA,
         exp.AlgorithmProperty: exp.Properties.Location.POST_CREATE,
@@ -695,10 +697,11 @@ class Generator(metaclass=_Generator):
         """
         if copy:
             expression = expression.copy()
-
+        # 处理
         expression = self.preprocess(expression)
 
         self.unsupported_messages = []
+        # 形成sql
         sql = self.sql(expression).strip()
 
         if self.pretty:
@@ -756,6 +759,7 @@ class Generator(metaclass=_Generator):
         comments: t.Optional[t.List[str]] = None,
         separated: bool = False,
     ) -> str:
+        '''添加注释'''
         comments = (
             ((expression and expression.comments) if comments is None else comments)  # type: ignore
             if self.comments
@@ -3036,6 +3040,7 @@ class Generator(metaclass=_Generator):
         op: str,
         stack: t.Optional[t.List[str | exp.Expression]] = None,
     ) -> str:
+        """连接"""
         if stack is not None:
             if expression.expressions:
                 stack.append(self.expressions(expression, sep=f" {op} "))

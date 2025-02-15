@@ -865,3 +865,10 @@ class TestParser(unittest.TestCase):
             expr = parse_one(sql)
             self.assertIsInstance(expr, exp.Insert)
             self.assertIsInstance(expr.expression.expressions[0].expressions[0], cls)
+
+    def test_select_demo1(self):
+        sql = 'select 1 + 2 as  ccc'
+        expr = parse_one(sql)
+        self.assertIsInstance(expr,exp.Select)
+
+
